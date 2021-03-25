@@ -1,13 +1,13 @@
 import React from "react";
-import { dbRef } from "./firebase";
+import { userRef } from "./firebase";
 import { useDispatch, useSelector } from "react-redux";
-import { getUsers } from "./redux/actions/users";
+import { getUsers, addUser, editUser, deleteUser } from "./redux/actions/users";
 
 function App() {
   const dispatch = useDispatch();
-  const users = useSelector(state => state.users.users);
-  const loading = useSelector(state => state.users.loading);
-  const error = useSelector(state => state.users.error);
+  const { users, loading, error } = useSelector(state => state.users);
+  const [edit, setEdit] = React.useState(false);
+
   const [form, setForm] = React.useState({
     name: "",
     age: "",
@@ -15,7 +15,10 @@ function App() {
   });
 
   React.useEffect(() => {
-    dispatch(getUsers());
+    if (users.length < 1 && !loading) {
+      dispatch(getUsers());
+    }
+
     console.log("running");
   }, []);
 
@@ -28,23 +31,21 @@ function App() {
 
   const handleSubmit = e => {
     e.preventDefault();
-    dbRef.child("users").push(form, err => {
-      if (!err) {
-        setForm({
-          name: "",
-          age: "",
-          email: ""
-        });
-      } else {
-        console.log("err", err);
-      }
-    });
+    if (edit === true) {
+      console.log("edit trigger");
+      dispatch(editUser(form));
+      setEdit(false);
+    } else {
+      let newPostKey = userRef.push().key;
+      console.log("new post key", newPostKey);
+      dispatch(addUser({ ...form, uid: newPostKey }));
+    }
+    setForm({ name: "", age: "", email: "" });
   };
 
   return (
     <div>
       <h1>Firebase Saga Demo</h1>
-
       <form onSubmit={handleSubmit}>
         <input
           type="text"
@@ -66,12 +67,32 @@ function App() {
         />
         <button type="submit">Submit</button>
       </form>
-      {console.log("data", users)}
+      {console.log("users", users, error)}
       {users && users.length
         ? users.map((data, index) => {
-            return <div key={index}>{data.name} </div>;
+            return (
+              <div key={index}>
+                <p>{data.name}</p>
+                <button
+                  onClick={() => {
+                    console.log("ref check", data);
+                    setEdit(true);
+                    setForm(data);
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => {
+                    dispatch(deleteUser(data));
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            );
           })
-        : "nothing"}
+        : "nothing"}{" "}
     </div>
   );
 }
